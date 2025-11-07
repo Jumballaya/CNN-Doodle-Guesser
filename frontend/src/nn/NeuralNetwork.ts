@@ -1,6 +1,83 @@
 import { activations, type ActivationEntry } from "./activation";
 import { Matrix } from "./Matrix";
 
+//
+//    CNN upgrade:
+//
+//        Kernel shape: [kH, kW, C_in, C_out]
+//
+//              K[ky][kx] = filter patch
+//              K[ky][kx][c_in] = per-channel weight
+//              K[ky][kx][c_in][f] = contrib to output channel f
+//
+//              bias: [C_out]
+//
+//
+//
+//
+//      CNN Layer shape:
+//
+//          Input: [N, H_in, W_in, C_in]
+//          Kernel: [kH, kW, C_in, C_out]
+//          Stride: [sH, sW]
+//          Padding: [padH, padW]
+//
+//          H_out = floor((H_in + padTop + padBottom - kH) / sH) + 1
+//          W_out = floor((W_in + padLeft + padRight - kW) / sW) + 1
+//          Output: [N, H_out, W_out, C_out]
+//
+//
+//          2 padding modes needed: "valid" and "same"
+//
+//            valid -- no padding, convolution applies where the filter fully fits
+//                    H_out = floor((H_in - kH) / sH) + 1
+//
+//            same -- output h/w == input h/w (when stride == 1)
+//                    padNeededH = max(0, (H_in - 1)*sH + kH - H_in)
+//                    padTop = floor(padNeededH / 2)
+//                    padBottom = padNeededH - padTop
+//
+//
+//
+//
+//
+//        CNN Forward pass:
+//
+//            For each batch n:
+//              For each output row y:
+//                For each output col x:
+//                  For each output channel f:
+//                    accumulate over:
+//                    kernel height ky
+//                    kernel width kx
+//                    input channels c
+//
+//
+//
+//      Current MLP process:
+//
+//            Matrix → Dense → Activation → Dense → Activation → Output
+//
+//      CNN process:
+//
+//            Tensor → Conv2D → Activation → Pool → Conv2D → Activation → Flatten → Dense → Dense
+//
+//
+//
+//
+//      Example Pipeline for doodle detector:
+//
+//          [
+//            { type:"input", shape:[28,28,1] },
+//            { type:"conv2d", filters:8, kernel:[3,3], stride:1, padding:"same", activation:"relu" },
+//            { type:"pool", size:[2,2] },
+//            { type:"conv2d", filters:16, kernel:[3,3], activation:"relu" },
+//            { type:"flatten" },
+//            { type:"dense", size:64, activation:"relu" },
+//            { type:"dense", size:10, activation:"softmax" }
+//          ]
+//
+
 export type LayerType = "input" | "dense";
 
 export interface LayerConfig {

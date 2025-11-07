@@ -19,12 +19,24 @@ export function remap(
 }
 
 // Return [H][W][C]
+// @TODO: Return a 3D Tensor?
+// then merge that into a larger 4D tensor?
 export function extractChannels(
-  imageData: ImageData,
-  channels: number
+  h: number,
+  w: number,
+  chan: number,
+  data: ImageData // @TODO: use a uint8 array?
 ): number[][][] {
-  const h = imageData.height;
-  const w = imageData.width;
   const out: number[][][] = [];
-  for (let i = 0; i < h * w; i += 4) {}
+  for (let y = 0; y < h; y++) {
+    out[y] = [];
+    for (let x = 0; x < w; x++) {
+      out[y][x] = [];
+      const pIdx = 4 * (y * w + x);
+      for (let c = 0; c < chan; c++) {
+        out[y][x][c] = data.data[pIdx + c];
+      }
+    }
+  }
+  return out;
 }
