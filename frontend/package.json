@@ -1,0 +1,20 @@
+{
+  "name": "neural",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "build:data": "node scripts/build_data.ts"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^7.1.7"
+  },
+  "dependencies": {
+    "@types/node": "^24.10.0",
+    "gl-matrix": "^3.4.4"
+  }
+}
