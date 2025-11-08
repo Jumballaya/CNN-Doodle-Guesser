@@ -16,6 +16,23 @@ import path from "path";
 //
 //
 
+const shuffleArray = <T = unknown>(array: Array<T>): Array<T> => {
+  let currentIndex = array.length;
+  let randomIndex;
+
+  while (currentIndex !== 0) {
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex],
+      array[currentIndex],
+    ];
+  }
+
+  return array;
+};
+
 const imgW = 28;
 const imgH = 28;
 const imgByteSize = imgW * imgH;
@@ -37,16 +54,16 @@ async function extractDoodles(
     );
   }
   const out_test = new Uint8Array(testingCount * imgByteSize);
-  const seen: number[] = [];
   const out_train = new Uint8Array(trainingCount * imgByteSize);
+
+  const indices = Array.from({ length: imgCount }, (_, i) => i);
+  shuffleArray(indices);
+  const trainIds = indices.slice(0, trainingCount);
+  const testIds = indices.slice(trainingCount, trainingCount + testingCount);
 
   // Training Data
   for (let i = 0; i < trainingCount; i++) {
-    let doodleId = 0;
-    while (seen.includes(doodleId)) {
-      doodleId = Math.floor(Math.random() * imgCount);
-    }
-    seen.push(doodleId);
+    const doodleId = trainIds[i];
     const firstImage = bytes.slice(
       npyHeaderSizeBytes + doodleId * imgByteSize,
       npyHeaderSizeBytes + doodleId * imgByteSize + imgByteSize
@@ -59,11 +76,7 @@ async function extractDoodles(
 
   // Test Data
   for (let i = 0; i < testingCount; i++) {
-    let doodleId = 0;
-    while (seen.includes(doodleId)) {
-      doodleId = Math.floor(Math.random() * imgCount);
-    }
-    seen.push(doodleId);
+    const doodleId = testIds[i];
     const firstImage = bytes.slice(
       npyHeaderSizeBytes + doodleId * imgByteSize,
       npyHeaderSizeBytes + doodleId * imgByteSize + imgByteSize
@@ -95,6 +108,12 @@ async function prepareDoodleSet(
 
   await fs.writeFile(testFile, test);
   await fs.writeFile(trainFile, train);
+
+  console.log(
+    `${name}: wrote ${train.length / imgByteSize} train, ${
+      test.length / imgByteSize
+    } test`
+  );
 }
 
 async function main() {

@@ -1,5 +1,5 @@
 import { clip } from "../utils";
-import { activations } from "./activation";
+import { activations, softmax } from "./activation";
 import type {
   ActivationValue,
   Cache,
@@ -18,11 +18,13 @@ import type {
   PoolLayer,
 } from "./nn.types";
 import { Tensor4D } from "./Tensor";
+import { losses, type LossEntry } from "./losses";
 
 export class NeuralNetwork {
   private layers: Layer[] = [];
   private learningRate: number;
   private debug = false;
+  private lossFn: LossEntry;
 
   constructor(configs: LayerConfig[], opts?: NeuralNetworkOptions) {
     if (configs.length < 2) {
@@ -32,6 +34,7 @@ export class NeuralNetwork {
     }
     this.debug = opts?.debug ?? false;
     this.learningRate = opts?.learningRate ?? 0.1;
+    this.lossFn = losses[opts?.loss ?? "mse"];
 
     // Build layers
     for (let i = 0; i < configs.length; i++) {
@@ -87,8 +90,8 @@ export class NeuralNetwork {
     const ctx = this.forwardPass(input);
     const output = ctx[ctx.length - 1].out;
 
-    // loss derivative (MSE)
-    let dOut = this.lossDerivative(output, target); // @TODO
+    // loss derivative
+    let dOut: ActivationValue = this.lossFn.df(output as Float32Array, target); // @TODO
 
     // ---- BACKWARD PASS ----
     for (let i = ctx.length - 1; i >= 0; i--) {
@@ -176,11 +179,23 @@ export class NeuralNetwork {
     const W = layer.weights;
     const B = layer.bias;
 
+    const isOutputSoftmax =
+      layer.activation?.name === "softmax" &&
+      this.lossFn?.name === "categoricalCrossEntropy";
+
     // --- 1) Compute dZ = dOut ⊙ f'(z)
     const dZ = new Float32Array(outSize);
-    for (let i = 0; i < outSize; i++) {
-      const dz = f ? f.df(z[i]) : 1;
-      dZ[i] = clip(dOut[i] * dz);
+    if (isOutputSoftmax) {
+      // Gradient already simplified to (ŷ - y)
+      // dOut here is the loss derivative directly from dcategoricalCrossEntropy
+      for (let i = 0; i < outSize; i++) {
+        dZ[i] = clip(dOut[i]);
+      }
+    } else {
+      for (let i = 0; i < outSize; i++) {
+        const dz = f ? f.df(z[i]) : 1;
+        dZ[i] = clip(dOut[i] * dz);
+      }
     }
 
     // --- 2) Compute dW and dB
@@ -478,14 +493,22 @@ export class NeuralNetwork {
     }
 
     const z = new Float32Array(layer.outputSize);
-    const out = new Float32Array(layer.outputSize);
     for (let i = 0; i < layer.outputSize; i++) {
       let sum = layer.bias[i];
       for (let j = 0; j < layer.inputSize; j++) {
         sum += layer.weights[i * layer.inputSize + j] * current[j];
       }
       z[i] = sum;
-      out[i] = layer.activation ? layer.activation.f(sum) : sum;
+    }
+
+    let out: Float32Array;
+    if (layer.activation?.name === "softmax") {
+      out = softmax.vector(z);
+    } else {
+      out = new Float32Array(z.length);
+      for (let i = 0; i < z.length; i++) {
+        out[i] = layer.activation ? layer.activation.f(z[i]) : z[i];
+      }
     }
 
     // DEBUG
@@ -809,50 +832,5 @@ export class NeuralNetwork {
         return layer.outShape;
       }
     }
-  }
-
-  private lossDerivative(
-    output: ActivationValue,
-    target: Float32Array
-  ): ActivationValue {
-    //
-    // Mean Squared Error (MSE):
-    //   L = 1/2 Σ (ŷ - y)^2
-    //   dL/dŷ = (ŷ - y)
-    //
-    // No 1/N factor here — learningRate controls scale externally.
-    //
-
-    // ---- Dense output (Float32Array) ----
-    if (output instanceof Float32Array) {
-      if (output.length !== target.length) {
-        throw new Error("Target size mismatch in lossDerivative");
-      }
-      const d = new Float32Array(output.length);
-      for (let i = 0; i < d.length; i++) d[i] = output[i] - target[i];
-      return d;
-    }
-
-    // ---- Conv2D output (Tensor4D) ----
-    if (output instanceof Tensor4D) {
-      const [N, H, W, C] = output.shape;
-
-      if (target.length !== N * H * W * C) {
-        throw new Error("Target size mismatch for Tensor4D lossDerivative");
-      }
-
-      const d = new Tensor4D([N, H, W, C]);
-      let idx = 0;
-
-      for (let n = 0; n < N; n++)
-        for (let y = 0; y < H; y++)
-          for (let x = 0; x < W; x++)
-            for (let c = 0; c < C; c++)
-              d.set(n, y, x, c, output.get(n, y, x, c) - target[idx++]);
-
-      return d;
-    }
-
-    throw new Error("Unsupported output type in lossDerivative");
   }
 }

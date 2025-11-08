@@ -1,4 +1,5 @@
 import type { ActivationEntry, activations } from "./activation";
+import type { losses } from "./losses";
 import type { Tensor4D } from "./Tensor";
 
 export type LayerType = "input" | "dense" | "conv2d" | "pool" | "flatten";
@@ -102,6 +103,7 @@ export type Layer =
 
 export interface NeuralNetworkOptions {
   learningRate?: number;
+  loss?: keyof typeof losses;
   debug?: boolean;
 }
 

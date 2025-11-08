@@ -68,6 +68,38 @@ function dlinear(_y: number): number {
   return 1;
 }
 
+//
+// Softmax activation
+//
+function softmaxVector(xs: Float32Array): Float32Array {
+  const max = Math.max(...xs);
+  const exps = xs.map((x) => Math.exp(x - max));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return new Float32Array(exps.map((v) => v / sum));
+}
+
+// The derivative of softmax is usually combined with cross-entropy loss,
+// but for completeness:
+function dsoftmaxVector(y: Float32Array): Float32Array[] {
+  const size = y.length;
+  const jacobian: Float32Array[] = [];
+  for (let i = 0; i < size; i++) {
+    jacobian[i] = new Float32Array(size);
+    for (let j = 0; j < size; j++) {
+      jacobian[i][j] = i === j ? y[i] * (1 - y[i]) : -y[i] * y[j];
+    }
+  }
+  return jacobian;
+}
+
+// Stub scalar softmax (won’t be used directly)
+function softmaxScalar(x: number): number {
+  return x; // identity placeholder
+}
+function dsoftmaxScalar(_y: number): number {
+  return 1; // handled at loss level
+}
+
 type Fn = (n: number) => number;
 export type ActivationEntry = { f: Fn; df: Fn; name: string };
 
@@ -87,4 +119,14 @@ export const activations: Record<string, ActivationEntry> = {
   },
   softplus: { f: softplus, df: dsoftplus, name: "softplus" },
   linear: { f: linear, df: dlinear, name: "linear" },
+  softmax: {
+    f: softmaxScalar,
+    df: dsoftmaxScalar,
+    name: "softmax",
+  },
+};
+
+export const softmax = {
+  vector: softmaxVector,
+  dvector: dsoftmaxVector,
 };
