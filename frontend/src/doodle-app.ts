@@ -203,28 +203,10 @@ export async function doodle() {
   // const chkTxt = JSON.stringify(checkpoint, null, 2);
   // downloadTextFile("doodle-guesser.json", chkTxt);
 
-  const data = await loadTrainingData(["butterfly", "cat", "rainbow"]);
   const checkpoint: NNCheckpoint = await (
     await fetch("doodle-guesser.json")
   ).json();
   const nn = NeuralNetwork.fromCheckpoint(checkpoint);
-
-  let testing_data: TrainingEntry[] = [];
-  testing_data = testing_data.concat(data.butterfly.test);
-  testing_data = testing_data.concat(data.cat.test);
-  testing_data = testing_data.concat(data.rainbow.test);
-
-  shuffleArray(testing_data);
-
-  let correct = 0;
-  for (let i = 0; i < testing_data.length; i++) {
-    const { data, label } = testing_data[i];
-    const yhat = nn.guess(new Float32Array(data));
-    const pred = argMax(yhat);
-    if (pred === label) correct++;
-  }
-  const percent = (correct / testing_data.length) * 100;
-  console.log(`${percent.toFixed(2)}% correct`);
 
   const guessBtn = document.createElement("button");
   guessBtn.innerText = "Guess!";
