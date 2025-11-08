@@ -1,5 +1,11 @@
+import {
+  NeuralNetwork,
+  Tensor4D,
+  type ActivationValue,
+  type NNCheckpoint,
+} from "@doodle/lib";
+
 export class DrawingApp {
-  public canvas: HTMLCanvasElement;
   public ctx: CanvasRenderingContext2D;
   public width: number;
   public height: number;
@@ -14,16 +20,24 @@ export class DrawingApp {
   private resizeCanvas: HTMLCanvasElement;
   private resizeCtx: CanvasRenderingContext2D;
 
-  constructor() {
-    this.canvas = document.createElement("canvas");
-    this.resizeCanvas = document.createElement("canvas");
+  private nn: NeuralNetwork;
+
+  // elements
+  public canvas: HTMLCanvasElement;
+  private guessBtn: HTMLButtonElement;
+  private container: HTMLDivElement;
+
+  constructor(nn: NeuralNetwork) {
+    this.nn = nn;
     this.width = 28 * 10 * 2;
     this.height = 28 * 10 * 2;
-    this.resizeCanvas.width = 28;
-    this.resizeCanvas.height = 28;
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
-    document.body.appendChild(this.canvas);
+
+    this.guessBtn = this.createGuessBtn();
+    [this.canvas, this.resizeCanvas] = this.createCanvas();
+    this.container = this.createContainer();
+    document.body.appendChild(this.container);
+    this.container.appendChild(this.canvas);
+    this.container.appendChild(this.guessBtn);
     this.ctx = this.canvas.getContext("2d", { willReadFrequently: true })!;
     this.resizeCtx = this.resizeCanvas.getContext("2d", {
       willReadFrequently: true,
@@ -60,6 +74,16 @@ export class DrawingApp {
     });
 
     this.canvas.addEventListener("mousemove", this.onMoveMouse.bind(this));
+  }
+
+  public static async FromSerialized(path: string) {
+    try {
+      const data: NNCheckpoint = await (await fetch(path)).json();
+      const nn = NeuralNetwork.fromCheckpoint(data);
+      return new DrawingApp(nn);
+    } catch (e) {
+      throw e;
+    }
   }
 
   public getData() {
@@ -112,4 +136,58 @@ export class DrawingApp {
       this.snapshots.push(screen);
     }
   }
+
+  private createGuessBtn(): HTMLButtonElement {
+    const guessBtn = document.createElement("button");
+    guessBtn.innerText = "Guess!";
+    guessBtn.classList.add("guess-btn");
+    guessBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const data = this.getData();
+      const guess = this.nn.guess(
+        new Tensor4D([1, 28, 28, 1], new Float32Array(data))
+      );
+      const output = argMax(guess);
+      if (output === 0) {
+        console.log("Butterfly?");
+      } else if (output === 1) {
+        console.log("Cat?");
+      } else if (output === 2) {
+        console.log("Rainbow?");
+      }
+    });
+    return guessBtn;
+  }
+
+  private createContainer(): HTMLDivElement {
+    const container = document.createElement("div");
+    container.classList.add("drawing-app");
+    return container;
+  }
+
+  private createCanvas(): [HTMLCanvasElement, HTMLCanvasElement] {
+    const canvas = document.createElement("canvas");
+    const resizeCanvas = document.createElement("canvas");
+    resizeCanvas.width = 28;
+    resizeCanvas.height = 28;
+    canvas.width = this.width;
+    canvas.height = this.height;
+    return [canvas, resizeCanvas];
+  }
 }
+
+const argMax = (arr: ActivationValue): number => {
+  if (!(arr instanceof Float32Array)) {
+    arr = arr.flatten()[0];
+  }
+  let idx = 0;
+  let max = -Infinity;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] > max) {
+      max = arr[i];
+      idx = i;
+    }
+  }
+
+  return idx;
+};

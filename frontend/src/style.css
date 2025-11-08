@@ -3,6 +3,7 @@ html, body {
   margin : 0;
   min-height: 100vh;
   min-width: 100vw;
+  background-color: #f6f6f6;
 }
 
 body {
@@ -13,4 +14,30 @@ body {
 
 canvas {
   border: 1px solid #999;
+}
+
+.drawing-app {
+  display: flex;
+  flex-direction: column;
+}
+
+.drawing-app canvas {
+  margin-bottom: 8px;
+}
+
+.guess-btn {
+  border: 3px solid #222;
+  color: #222;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 8px;
+  background-color: #f6f6f6;
+  transition: all 150ms ease-in-out;
+}
+
+.guess-btn:hover {
+  background-color: #222;
+  color: #f6f6f6;
+  border-color: #f6f6f6;
+  cursor: pointer;
 }

@@ -1,0 +1,17 @@
+{
+  "name": "doodle-ai",
+  "private": true,
+  "scripts": {
+    "build:all": "npm run build --workspaces",
+    "build:lib": "npm run build --workspace=@doodle/lib",
+    "build:frontend": "npm run build --workspace=@doodle/frontend",
+    "run:frontend": "npm run dev --workspace=@doodle/frontend",
+    "run:data": "npm run data --workspace=@doodle/backend",
+    "run:train": "npm run train --workspace=@doodle/backend"
+  },
+  "workspaces": [
+    "lib",
+    "backend",
+    "frontend"
+  ]
+}

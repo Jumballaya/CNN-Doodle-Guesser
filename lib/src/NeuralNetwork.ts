@@ -1,4 +1,4 @@
-import { clip } from "../utils";
+import { clip } from "./utils";
 import { activations, softmax } from "./activation";
 import type {
   ActivationValue,
@@ -325,6 +325,34 @@ export class NeuralNetwork {
       }
     }
 
+    if (!Number.isFinite(dZ[0])) {
+      console.log({
+        layer,
+        i: 3,
+        dOut_i: dOut[3],
+        dz_i: f ? f.df(z[3]) : 1,
+        z_i: z[3],
+      });
+      throw new Error("NaN in dZ");
+    }
+
+    for (let i = 0; i < outSize; i++) {
+      if (!Number.isFinite(dZ[i])) {
+        console.error("NaN in dZ before weight grad", {
+          i,
+          dZ: dZ[i],
+          z: z[i],
+        });
+        throw new Error("NaN in dZ source");
+      }
+    }
+    for (let j = 0; j < inSize; j++) {
+      if (!Number.isFinite(x[j])) {
+        console.error("NaN in input activation x", { j, x: x[j] });
+        throw new Error("NaN in x source");
+      }
+    }
+
     // --- 2) Compute dW and dB
     const dW = new Float32Array(inSize * outSize);
     const dB = new Float32Array(outSize);
@@ -345,6 +373,17 @@ export class NeuralNetwork {
         sum += W[i * inSize + j] * dZ[i];
       }
       dX[j] = clip(sum);
+    }
+
+    if (!Number.isFinite(dX[0]) || dX.some((v) => !Number.isFinite(v))) {
+      console.error("NaN/Inf in dX from layer:", layer.type, {
+        isOutputSoftmax:
+          layer.activation?.name === "softmax" &&
+          this.lossFn?.name === "categoricalCrossEntropy",
+        dZ: Array.from(dZ.slice(0, 10)),
+        W0: Array.from(W.slice(0, Math.min(10, W.length))),
+      });
+      throw new Error("NaN in dX");
     }
 
     // --- 4) Apply gradient descent update

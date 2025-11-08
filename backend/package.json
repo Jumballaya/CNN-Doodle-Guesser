@@ -1,0 +1,18 @@
+{
+  "name": "@doodle/backend",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "train": "ts-node src/train.ts"
+  },
+  "dependencies": {
+    "@doodle/lib": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "ts-node": "^10.9.2"
+  }
+}
