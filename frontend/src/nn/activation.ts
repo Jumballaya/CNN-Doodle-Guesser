@@ -13,6 +13,8 @@ function dsigmoid(y: number): number {
 }
 
 function tanh(x: number): number {
+  if (x > 20) x = 20;
+  if (x < -20) x = -20;
   return Math.tanh(x);
 }
 

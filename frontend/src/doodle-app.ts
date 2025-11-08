@@ -119,7 +119,7 @@ function* generateNN(
   epochCount = 1
 ): Generator<void, NeuralNetwork, void> {
   const nn = new NeuralNetwork([
-    { type: "input", size: 784, activation: "sigmoid" },
+    { type: "input", shape: [1, 28, 28, 1], activation: "sigmoid" },
     { type: "dense", size: 64, activation: "sigmoid" },
     { type: "dense", size: 3, activation: "sigmoid" },
   ]);
@@ -181,39 +181,39 @@ async function main() {
 
   const [nn, data] = await trainNN(8);
 
-  let testing_data: TrainingEntry[] = [];
-  testing_data = testing_data.concat(data.butterfly.test);
-  testing_data = testing_data.concat(data.cat.test);
-  testing_data = testing_data.concat(data.rainbow.test);
+  // let testing_data: TrainingEntry[] = [];
+  // testing_data = testing_data.concat(data.butterfly.test);
+  // testing_data = testing_data.concat(data.cat.test);
+  // testing_data = testing_data.concat(data.rainbow.test);
 
-  shuffleArray(testing_data);
+  // shuffleArray(testing_data);
 
-  let guesses: number[] = [];
-  const len = testing_data.length;
-  for (let i = 0; i < len; i++) {
-    const guess = nn.guess(testing_data[i].data);
-    guesses.push(argMax(guess) === 1 ? 1 : 0);
-  }
-  const sum = guesses.reduce((acc, i) => acc + i, 0);
-  const percent = (sum / len) * 100;
+  // let guesses: number[] = [];
+  // const len = testing_data.length;
+  // for (let i = 0; i < len; i++) {
+  //   const guess = nn.guess(testing_data[i].data);
+  //   guesses.push(argMax(guess) === 1 ? 1 : 0);
+  // }
+  // const sum = guesses.reduce((acc, i) => acc + i, 0);
+  // const percent = (sum / len) * 100;
 
-  console.log(`${percent}% correct`);
+  // console.log(`${percent}% correct`);
 
-  const guessBtn = document.createElement("button");
-  guessBtn.innerText = "Guess!";
-  document.body.appendChild(guessBtn);
-  guessBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    const data = drawApp.getData();
-    const guess = nn.guess(data);
-    const output = argMax(guess);
-    if (output === 0) {
-      console.log("Butterfly?");
-    } else if (output === 1) {
-      console.log("Cat?");
-    } else if (output === 2) {
-      console.log("Rainbow?");
-    }
-  });
+  // const guessBtn = document.createElement("button");
+  // guessBtn.innerText = "Guess!";
+  // document.body.appendChild(guessBtn);
+  // guessBtn.addEventListener("click", (e) => {
+  //   e.preventDefault();
+  //   const data = drawApp.getData();
+  //   const guess = nn.guess(data);
+  //   const output = argMax(guess);
+  //   if (output === 0) {
+  //     console.log("Butterfly?");
+  //   } else if (output === 1) {
+  //     console.log("Cat?");
+  //   } else if (output === 2) {
+  //     console.log("Rainbow?");
+  //   }
+  // });
 }
 main();

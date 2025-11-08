@@ -40,3 +40,5 @@ export function extractChannels(
   }
   return out;
 }
+
+export const clip = (v: number) => (v > 1 ? 1 : v < -1 ? -1 : v);

@@ -2,8 +2,8 @@ type Vec4 = [number, number, number, number];
 
 export class Tensor4D {
   private buffer: Float32Array;
-  private shape: Vec4;
-  private strides: Vec4;
+  public readonly shape: Vec4;
+  public readonly strides: Vec4;
 
   constructor(shape: Vec4, data?: Float32Array) {
     this.shape = [shape[0], shape[1], shape[2], shape[3]];
@@ -17,12 +17,35 @@ export class Tensor4D {
     this.strides = [h * w * c, w * c, c, 1];
   }
 
+  public getN(): number {
+    return this.shape[0];
+  }
+  public getH(): number {
+    return this.shape[1];
+  }
+  public getW(): number {
+    return this.shape[2];
+  }
+  public getC(): number {
+    return this.shape[3];
+  }
+
   public get(n: number, y: number, x: number, c: number): number {
     return this.buffer[this.idx(n, y, x, c)];
   }
 
   public set(n: number, y: number, x: number, c: number, v: number): void {
     this.buffer[this.idx(n, y, x, c)] = v;
+  }
+
+  public setEach(cb: (n: number) => number) {
+    this.buffer.forEach((_, idx, arr) => {
+      arr[idx] = cb(arr[idx]);
+    });
+  }
+
+  public slice(start: number, end: number): Float32Array {
+    return this.buffer.slice(start, end);
   }
 
   public indexOf(n: number, y: number, x: number, c: number): number {
@@ -124,7 +147,7 @@ export class Tensor4D {
     windowH: number,
     windowW: number
   ): Float32Array {
-    const [_, _H, _W, C] = this.shape;
+    const [_, H, W, C] = this.shape;
     const out = new Float32Array(windowH * windowW * C);
 
     let i = 0;
@@ -132,6 +155,14 @@ export class Tensor4D {
       for (let dx = 0; dx < windowW; dx++) {
         const iy = y + dy;
         const ix = x + dx;
+
+        // bounds checking
+        const oob = iy < 0 || iy >= H || ix < 0 || ix >= W;
+        if (oob) {
+          for (let c = 0; c < C; c++) out[i++] = 0;
+          continue;
+        }
+
         for (let c = 0; c < C; c++) {
           out[i++] = this.get(n, iy, ix, c);
         }
