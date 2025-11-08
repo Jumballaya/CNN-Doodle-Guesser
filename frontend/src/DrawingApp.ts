@@ -149,9 +149,9 @@ export class DrawingApp {
       );
       const output = argMax(guess);
       if (output === 0) {
-        console.log("Butterfly?");
-      } else if (output === 1) {
         console.log("Cat?");
+      } else if (output === 1) {
+        console.log("Butterfly?");
       } else if (output === 2) {
         console.log("Rainbow?");
       }

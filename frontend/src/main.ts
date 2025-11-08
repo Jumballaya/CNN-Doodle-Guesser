@@ -1,7 +1,7 @@
-import { doodle } from "./doodle-app";
+import { DrawingApp } from "./DrawingApp";
 import "./style.css";
 
 async function main() {
-  await doodle();
+  await DrawingApp.FromSerialized("model_epoch-25.json");
 }
 main();

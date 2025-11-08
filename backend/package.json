@@ -3,16 +3,17 @@
   "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "train": "ts-node src/train.ts"
+    "train": "tsx src/train-quickdraw3.ts"
   },
   "dependencies": {
     "@doodle/lib": "*"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "ts-node": "^10.9.2"
+    "@types/node": "^24.10.0",
+    "typescript": "^5.6.0"
   }
 }
