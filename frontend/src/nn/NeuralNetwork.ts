@@ -2,7 +2,7 @@ import { clip } from "../utils";
 import { activations, softmax } from "./activation";
 import type {
   ActivationValue,
-  Cache,
+  LayerCache,
   Conv2DCache,
   Conv2DConfig,
   Conv2DLayer,
@@ -16,6 +16,8 @@ import type {
   PoolCache,
   PoolConfig,
   PoolLayer,
+  NNCheckpoint,
+  LayerSerialized,
 } from "./nn.types";
 import { Tensor4D } from "./Tensor";
 import { losses, type LossEntry } from "./losses";
@@ -86,14 +88,27 @@ export class NeuralNetwork {
   }
 
   public train(input: ActivationValue, target: Float32Array) {
-    // ---- FORWARD PASS ----
     const ctx = this.forwardPass(input);
     const output = ctx[ctx.length - 1].out;
+    const outputLayer = ctx[ctx.length - 1].layer;
 
-    // loss derivative
-    let dOut: ActivationValue = this.lossFn.df(output as Float32Array, target); // @TODO
+    // account for softmax
+    let dOut: ActivationValue;
+    if (
+      outputLayer.type === "dense" &&
+      outputLayer.activation?.name === "softmax" &&
+      this.lossFn.name === "categoricalCrossEntropy"
+    ) {
+      const out = output as Float32Array;
+      dOut = new Float32Array(out.length);
+      for (let i = 0; i < out.length; i++) {
+        dOut[i] = out[i] - target[i];
+      }
+    } else {
+      dOut = this.lossFn.df(output as Float32Array, target);
+    }
 
-    // ---- BACKWARD PASS ----
+    // Backprop
     for (let i = ctx.length - 1; i >= 0; i--) {
       const { layer, cache } = ctx[i];
 
@@ -131,6 +146,118 @@ export class NeuralNetwork {
     }
   }
 
+  public checkpoint(): NNCheckpoint {
+    return {
+      learningRate: this.learningRate,
+      layers: this.layers.map(this.serializeLayer.bind(this)),
+    };
+  }
+
+  public static fromCheckpoint(ckpt: NNCheckpoint): NeuralNetwork {
+    const rebuild: LayerConfig[] = ckpt.layers.map((l) => {
+      switch (l.type) {
+        case "input":
+          return { type: "input", shape: l.shape };
+        case "flatten":
+          return { type: "flatten" };
+        case "pool":
+          return {
+            type: "pool",
+            size: [l.windowH, l.windowW],
+            stride: [l.strideH, l.strideW],
+          };
+        case "dense":
+          return {
+            type: "dense",
+            size: l.outputSize,
+            activation: l.activation as any,
+          };
+        case "conv2d":
+          return {
+            type: "conv2d",
+            filters: l.outShape[3],
+            kernel: [l.kernelShape[0], l.kernelShape[1]],
+            stride: [l.strideH, l.strideW],
+            padding: "valid",
+            activation: l.activation as any,
+          };
+      }
+    });
+    const nn = new NeuralNetwork(rebuild, { learningRate: ckpt.learningRate });
+
+    // inject weights/biases
+    for (let i = 0; i < nn["layers"].length; i++) {
+      const a = ckpt.layers[i];
+      const b = nn["layers"][i];
+      if (a.type === "dense" && b.type === "dense") {
+        b.weights.set(Float32Array.from(a.weights));
+        b.bias.set(Float32Array.from(a.bias));
+      }
+      if (a.type === "conv2d" && b.type === "conv2d") {
+        const kernel = Float32Array.from(a.kernel);
+        // Tensor4D expects (shape, data)
+        b.kernel = new Tensor4D(a.kernelShape, kernel);
+        b.bias.set(Float32Array.from(a.bias));
+      }
+    }
+
+    return nn;
+  }
+
+  private serializeLayer(l: Layer): LayerSerialized {
+    switch (l.type) {
+      case "input": {
+        return {
+          type: "input",
+          shape: l.shape,
+        };
+      }
+      case "flatten": {
+        return {
+          type: "flatten",
+          size: l.size,
+        };
+      }
+      case "pool": {
+        return {
+          type: "pool",
+          windowH: l.windowH,
+          windowW: l.windowW,
+          strideH: l.strideH,
+          strideW: l.strideW,
+          outShape: l.outShape,
+          channels: l.channels,
+        };
+      }
+      case "dense": {
+        return {
+          type: "dense",
+          inputSize: l.inputSize,
+          outputSize: l.outputSize,
+          activation: l.activation?.name,
+          weights: Array.from(l.weights),
+          bias: Array.from(l.bias),
+        };
+      }
+      case "conv2d": {
+        return {
+          type: "conv2d",
+          strideH: l.strideH,
+          strideW: l.strideW,
+          padTop: l.padTop,
+          padBottom: l.padBottom,
+          padLeft: l.padLeft,
+          padRight: l.padRight,
+          activation: l.activation?.name,
+          kernel: Array.from(l.kernel.slice(0)),
+          kernelShape: l.kernel.shape,
+          bias: Array.from(l.bias),
+          outShape: l.outShape,
+        };
+      }
+    }
+  }
+
   //
   //  Back propagation
   //
@@ -138,7 +265,7 @@ export class NeuralNetwork {
   private backwardLayer(
     layer: Layer,
     dOut: ActivationValue,
-    cache: Cache
+    cache: LayerCache
   ): ActivationValue {
     switch (layer.type) {
       case "input": {
@@ -162,7 +289,7 @@ export class NeuralNetwork {
   private denseBackward(
     dOut: ActivationValue,
     layer: DenseLayer,
-    cache: Cache
+    cache: LayerCache
   ): ActivationValue {
     if (cache.type !== "dense") {
       throw new Error(`densebackward cache type mismatch, got: ${cache.type}`);
@@ -236,7 +363,7 @@ export class NeuralNetwork {
 
   private flattenBackward(
     dOut: ActivationValue,
-    cache: Cache
+    cache: LayerCache
   ): ActivationValue {
     if (!(dOut instanceof Float32Array)) {
       throw new Error("flattenBackward expects Float32Array gradient");
@@ -269,12 +396,14 @@ export class NeuralNetwork {
   private conv2DBackward(
     dOut: ActivationValue,
     layer: Conv2DLayer,
-    cache: Cache
+    cache: LayerCache
   ): ActivationValue {
-    if (!(dOut instanceof Tensor4D))
+    if (!(dOut instanceof Tensor4D)) {
       throw new Error("conv2DBackward expects Tensor4D");
-    if (cache.type !== "conv2d")
+    }
+    if (cache.type !== "conv2d") {
       throw new Error("conv2DBackward cache mismatch");
+    }
 
     const {
       input,
@@ -356,28 +485,40 @@ export class NeuralNetwork {
 
     // 3) Crop dPad → dInput
     const dInput = new Tensor4D(input.shape);
-    for (let n = 0; n < N; n++)
-      for (let y = 0; y < input.getH(); y++)
-        for (let x = 0; x < input.getW(); x++)
-          for (let c = 0; c < C_in; c++)
+    for (let n = 0; n < N; n++) {
+      for (let y = 0; y < input.getH(); y++) {
+        for (let x = 0; x < input.getW(); x++) {
+          for (let c = 0; c < C_in; c++) {
             dInput.set(n, y, x, c, dPad.get(n, y + padTop, x + padLeft, c));
+          }
+        }
+      }
+    }
 
     // 4) SGD updates (use get/set, not flatten)
     const lr = this.learningRate;
-    for (let f = 0; f < C_out; f++) layer.bias[f] -= lr * dBias[f];
-    for (let ky = 0; ky < kH; ky++)
-      for (let kx = 0; kx < kW; kx++)
-        for (let c = 0; c < C_in; c++)
+    for (let f = 0; f < C_out; f++) {
+      layer.bias[f] -= lr * dBias[f];
+    }
+    for (let ky = 0; ky < kH; ky++) {
+      for (let kx = 0; kx < kW; kx++) {
+        for (let c = 0; c < C_in; c++) {
           for (let f = 0; f < C_out; f++) {
             const newW =
               kernel.get(ky, kx, c, f) - lr * dKernel.get(ky, kx, c, f);
             kernel.set(ky, kx, c, f, newW);
           }
+        }
+      }
+    }
 
     return dInput;
   }
 
-  private poolBackward(dOut: ActivationValue, cache: Cache): ActivationValue {
+  private poolBackward(
+    dOut: ActivationValue,
+    cache: LayerCache
+  ): ActivationValue {
     if (!(dOut instanceof Tensor4D)) {
       throw new Error("poolBackward expects Tensor4D");
     }
@@ -430,13 +571,13 @@ export class NeuralNetwork {
   //
   private forwardPass(input: ActivationValue): Array<{
     out: ActivationValue;
-    cache: Cache;
+    cache: LayerCache;
     layer: Layer;
   }> {
     const ctx: Array<{
       out: ActivationValue;
       layer: Layer;
-      cache: Cache;
+      cache: LayerCache;
     }> = []; // array of { layer, out, cache }
     let act = input;
 
@@ -452,7 +593,7 @@ export class NeuralNetwork {
   private forwardLayer(
     layer: Layer,
     input: ActivationValue
-  ): { out: ActivationValue; cache: Cache } {
+  ): { out: ActivationValue; cache: LayerCache } {
     switch (layer.type) {
       case "input": {
         return {
@@ -481,7 +622,7 @@ export class NeuralNetwork {
   private denseForward(
     current: ActivationValue,
     layer: DenseLayer
-  ): { out: ActivationValue; cache: Cache } {
+  ): { out: ActivationValue; cache: LayerCache } {
     // If NHWC tensor, flatten to 1D vector
     if (current instanceof Tensor4D) {
       const arr = current.flatten()[0]; // batch=1
@@ -536,7 +677,7 @@ export class NeuralNetwork {
   private conv2DForward(
     current: ActivationValue,
     layer: Conv2DLayer
-  ): { out: ActivationValue; cache: Cache } {
+  ): { out: ActivationValue; cache: LayerCache } {
     if (!(current instanceof Tensor4D)) {
       throw new Error("Conv2D expects Tensor4D input");
     }
@@ -610,7 +751,7 @@ export class NeuralNetwork {
   private poolForward(
     current: ActivationValue,
     layer: PoolLayer
-  ): { out: ActivationValue; cache: Cache } {
+  ): { out: ActivationValue; cache: LayerCache } {
     if (!(current instanceof Tensor4D)) {
       throw new Error("Pool layer expects a Tensor4D input");
     }
@@ -671,14 +812,14 @@ export class NeuralNetwork {
 
   private flattenForward(current: ActivationValue): {
     out: ActivationValue;
-    cache: Cache;
+    cache: LayerCache;
   } {
     if (!(current instanceof Tensor4D)) {
       throw new Error("Flatten expects a Tensor4D");
     }
 
     const [N, H, W, C] = current.shape;
-    const cache: Cache = { type: "flatten", N, H, W, C };
+    const cache: LayerCache = { type: "flatten", N, H, W, C };
 
     if (N !== 1) {
       throw new Error("Flatten only supports a batch size of 1");

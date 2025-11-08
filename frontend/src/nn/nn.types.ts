@@ -2,6 +2,8 @@ import type { ActivationEntry, activations } from "./activation";
 import type { losses } from "./losses";
 import type { Tensor4D } from "./Tensor";
 
+export type Vec4 = [number, number, number, number];
+
 export type LayerType = "input" | "dense" | "conv2d" | "pool" | "flatten";
 export type ActivationValue = Tensor4D | Float32Array;
 
@@ -11,7 +13,7 @@ export type ActivationValue = Tensor4D | Float32Array;
 
 export interface InputConfig {
   type: "input";
-  shape: [number, number, number, number];
+  shape: Vec4;
   activation?: keyof typeof activations;
 }
 
@@ -53,7 +55,7 @@ export type LayerConfig =
 
 export interface InputLayer {
   type: "input";
-  shape: [number, number, number, number]; // N, H, W, C
+  shape: Vec4; // N, H, W, C
 }
 
 export interface DenseLayer {
@@ -75,7 +77,7 @@ export interface Conv2DLayer {
   padBottom: number;
   padLeft: number;
   padRight: number;
-  outShape: [number, number, number, number];
+  outShape: Vec4;
   activation?: ActivationEntry;
 }
 
@@ -86,7 +88,7 @@ export interface PoolLayer {
   strideH: number;
   strideW: number;
   channels: number;
-  outShape: [number, number, number, number];
+  outShape: Vec4;
 }
 
 export interface FlattenLayer {
@@ -113,7 +115,7 @@ export interface NeuralNetworkOptions {
 
 export interface InputCache {
   type: "input";
-  shape: [number, number, number, number];
+  shape: Vec4;
 }
 
 export interface DenseCache {
@@ -156,9 +158,73 @@ export interface Conv2DCache {
   padLeft: number;
 }
 
-export type Cache =
+export type LayerCache =
   | InputCache
   | DenseCache
   | FlattenCache
   | PoolCache
   | Conv2DCache;
+
+//
+//  Serialization
+//
+//      @TODO: Build a single base input, dense, etc. types
+//             that the config, layer, cache and serialized
+//             objects can build on.
+//
+
+export interface InputSerialized {
+  type: "input";
+  shape: Vec4;
+}
+
+export interface DenseSerialized {
+  type: "dense";
+  inputSize: number;
+  outputSize: number;
+  activation?: string;
+  weights: number[]; // row major [out, in]
+  bias: number[];
+}
+
+export interface Conv2DSerialized {
+  type: "conv2d";
+  strideH: number;
+  strideW: number;
+  padTop: number;
+  padBottom: number;
+  padLeft: number;
+  padRight: number;
+  activation?: string;
+  kernel: number[]; // [kH, kW, C_in, C_out]
+  kernelShape: Vec4;
+  bias: number[];
+  outShape: Vec4;
+}
+
+export interface PoolSerialized {
+  type: "pool";
+  windowH: number;
+  windowW: number;
+  strideH: number;
+  strideW: number;
+  channels: number;
+  outShape: Vec4;
+}
+
+export interface FlattenSerialized {
+  type: "flatten";
+  size: number;
+}
+
+export type LayerSerialized =
+  | InputSerialized
+  | DenseSerialized
+  | Conv2DSerialized
+  | PoolSerialized
+  | FlattenSerialized;
+
+export type NNCheckpoint = {
+  learningRate: number;
+  layers: Array<LayerSerialized>;
+};

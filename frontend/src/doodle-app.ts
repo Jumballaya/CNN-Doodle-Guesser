@@ -1,6 +1,6 @@
 import { DrawingApp } from "./drawingApp/DrawingApp";
 import { NeuralNetwork } from "./nn/NeuralNetwork";
-import type { ActivationValue } from "./nn/nn.types";
+import type { ActivationValue, NNCheckpoint } from "./nn/nn.types";
 import "./style.css";
 
 type TrainingEntry = {
@@ -12,6 +12,21 @@ type DataEntry = {
   train: Array<TrainingEntry>;
   test: Array<TrainingEntry>;
 };
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 // returns the index of the max value
 const argMax = (arr: ActivationValue): number => {
@@ -183,7 +198,16 @@ async function trainNN(
 export async function doodle() {
   const drawApp = new DrawingApp();
 
-  const [nn, data] = await trainNN(8);
+  // const [nn, data] = await trainNN(8);
+  // const checkpoint = nn.checkpoint();
+  // const chkTxt = JSON.stringify(checkpoint, null, 2);
+  // downloadTextFile("doodle-guesser.json", chkTxt);
+
+  const data = await loadTrainingData(["butterfly", "cat", "rainbow"]);
+  const checkpoint: NNCheckpoint = await (
+    await fetch("doodle-guesser.json")
+  ).json();
+  const nn = NeuralNetwork.fromCheckpoint(checkpoint);
 
   let testing_data: TrainingEntry[] = [];
   testing_data = testing_data.concat(data.butterfly.test);

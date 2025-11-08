@@ -1,4 +1,4 @@
-type Vec4 = [number, number, number, number];
+import type { Vec4 } from "./nn.types";
 
 export class Tensor4D {
   private buffer: Float32Array;
@@ -44,8 +44,8 @@ export class Tensor4D {
     });
   }
 
-  public slice(start: number, end: number): Float32Array {
-    return this.buffer.slice(start, end);
+  public slice(start: number, end?: number): Float32Array {
+    return this.buffer.slice(start, end ?? this.buffer.length);
   }
 
   public indexOf(n: number, y: number, x: number, c: number): number {
