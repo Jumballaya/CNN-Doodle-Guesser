@@ -180,7 +180,6 @@ export class DrawingApp {
       const guess = this.nn.guess(
         new Tensor4D([1, 28, 28, 1], new Float32Array(data))
       );
-      console.log(guess);
       const output = argMax(guess);
       console.log(`${classes[output]}?`);
     });

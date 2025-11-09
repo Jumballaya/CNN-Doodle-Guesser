@@ -1,4 +1,3 @@
-// backend/src/data/dataset-builder.ts
 import fs from "node:fs/promises";
 import { open as openFd } from "node:fs/promises";
 import { Buffer } from "node:buffer";
@@ -12,6 +11,8 @@ import { BatchSampler } from "./BatchSampler";
 const IMG_H = 28;
 const IMG_W = 28;
 const IMG_SIZE = IMG_H * IMG_W;
+const DEFAULT_TRAIN_COUNT = 800;
+const DEFAULT_TEST_COUNT = 200;
 const DEFAULT_CACHE_DIR = ".cache/quickdraw";
 const DEFAULT_DATA_DIR = ".cache/public";
 const DEFAULT_MANIFEST = ".cache/public/quickdraw-3.json";
@@ -27,7 +28,16 @@ export interface DatasetBuilderOptions {
   cacheDir?: string;
   dataDir?: string;
   manifestPath?: string;
+  trainCount?: number;
+  testCount?: number;
 }
+
+/**
+ * Format class display name, e.g. cat -> Cat, aircraft carrier -> Aircraft Carrier
+ */
+const capitalize = (s: string) => `${s[0].toUpperCase()}${s.slice(1)}`;
+const displayName = (s: string) => s.split("_").map(capitalize).join(" ");
+const snakeCase = (s: string) => s.replace(" ", "_");
 
 /**
  * Convenience wrapper over manifest + NodeFileSource.
@@ -66,7 +76,10 @@ async function ensureDir(dir: string) {
 }
 
 function quickdrawUrl(name: string): string {
-  return `https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/${name}.npy`;
+  return `https://storage.googleapis.com/quickdraw_dataset/full/numpy_bitmap/${name.replace(
+    "_",
+    " "
+  )}.npy`;
 }
 
 async function downloadIfNeeded(url: string, dest: string): Promise<void> {
@@ -199,8 +212,7 @@ async function buildClassBins(
   const classInfo: ClassInfo = {
     id,
     name: spec.name,
-    displayName:
-      spec.displayName ?? spec.name[0].toUpperCase() + spec.name.slice(1),
+    displayName: spec.displayName ?? displayName(spec.name),
     oneHot,
     train: mkSplit(trainRel, spec.trainCount, trainOffsets),
     test: mkSplit(testRel, spec.testCount, testOffsets),
@@ -227,10 +239,12 @@ export class DatasetBuilder {
       dataDir = DEFAULT_DATA_DIR,
       manifestPath = DEFAULT_MANIFEST,
     } = options;
+    const trainCount = options.trainCount ?? DEFAULT_TRAIN_COUNT;
+    const testCount = options.testCount ?? DEFAULT_TEST_COUNT;
 
     const specs: ClassSpec[] = namesOrSpecs.map((n) =>
       typeof n === "string"
-        ? { name: n, trainCount: 800, testCount: 200 } // default counts
+        ? { name: snakeCase(n), trainCount, testCount } // default counts
         : n
     );
 
@@ -241,6 +255,8 @@ export class DatasetBuilder {
         cacheDir,
         dataDir,
         manifestPath,
+        trainCount,
+        testCount,
       });
       classes.push(info);
     }

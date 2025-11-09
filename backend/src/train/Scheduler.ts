@@ -1,4 +1,3 @@
-// backend/src/train/scheduler.ts
 export interface IScheduler {
   tick(): Promise<void>;
 }

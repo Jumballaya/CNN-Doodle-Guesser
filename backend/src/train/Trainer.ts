@@ -1,11 +1,6 @@
-// backend/src/train/trainer.ts
 import fs from "node:fs/promises";
 import path from "node:path";
-import {
-  type NeuralNetwork,
-  type ActivationValue,
-  Tensor4D,
-} from "@doodle/lib";
+import { type NeuralNetwork, Tensor4D } from "@doodle/lib";
 import type { NNCheckpoint } from "@doodle/lib";
 import type { QuickdrawDataset } from "../data/DatasetBuilder";
 import type { IScheduler } from "./Scheduler";

@@ -1,4 +1,3 @@
-// backend/src/data/batch-sampler.ts
 import type { ClassInfo } from "./manifest";
 import type { IDataSource, Batch } from "./NodeFileSource";
 

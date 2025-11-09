@@ -1,4 +1,3 @@
-// backend/src/data/node-file-source.ts
 import fs from "node:fs/promises";
 import { Buffer } from "node:buffer";
 import path from "node:path";

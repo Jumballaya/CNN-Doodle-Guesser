@@ -1,4 +1,3 @@
-// backend/src/data/manifest.ts
 export type ImageSize = [number, number, number]; // [H, W, C]
 
 export interface SplitInfo {

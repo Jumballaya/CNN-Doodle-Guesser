@@ -1,29 +1,32 @@
-// backend/src/train-quickdraw3.ts
-import { NeuralNetwork } from "@doodle/lib";
+import { NeuralNetwork, shuffleArray } from "@doodle/lib";
 import { DatasetBuilder } from "./data/DatasetBuilder";
 import { NodeScheduler } from "./train/Scheduler";
 import { Trainer } from "./train/Trainer";
 import fs from "node:fs/promises";
+import { getCLIOptions, USAGE } from "./cli";
+
+async function getClassList(path: string): Promise<string[]> {
+  const res = await fs.readFile(path);
+  const txt = res.toString();
+  return txt.split("\n");
+}
 
 async function main() {
-  // 1. Build (or load) dataset
-  const dataset = await DatasetBuilder.create(
-    [
-      "cat",
-      "butterfly",
-      "rainbow",
-      "banana",
-      "flower",
-      "ladder",
-      "mushroom",
-      "snowman",
-      "sword",
-      "nose",
-    ].map((name) => ({ name, trainCount: 4000, testCount: 800 })),
-    {}
-  );
+  const opts = getCLIOptions();
+  if (opts.help) {
+    console.log(USAGE);
+    return;
+  }
+  // Get CLI inputs
 
-  // 2. Define model
+  // Load class list and build data set
+  const classes = await getClassList(opts.classList);
+  const dataset = await DatasetBuilder.create(classes, {
+    manifestPath: ".cache/public/quickdraw.json",
+    trainCount: opts.trainCount,
+    testCount: opts.testCount,
+  });
+
   const nn = new NeuralNetwork(
     [
       { type: "input", shape: [1, 28, 28, 1] },
@@ -33,12 +36,12 @@ async function main() {
       { type: "pool", size: [2, 2] },
       { type: "flatten" },
       { type: "dense", size: 64, activation: "leakyRelu" },
-      { type: "dense", size: 10, activation: "softmax" },
+      { type: "dense", size: classes.length, activation: "softmax" },
     ],
-    { learningRate: 0.001, loss: "categoricalCrossEntropy" }
+    { learningRate: 0.005, loss: "categoricalCrossEntropy" }
   );
 
-  // 3. Create trainer
+  // Training
   const scheduler = new NodeScheduler();
   const trainer = new Trainer(nn, dataset, scheduler, {
     batchSize: 32,
@@ -47,7 +50,6 @@ async function main() {
     checkpointEvery: 1,
   });
 
-  // 4. Train
   await trainer.train(
     {
       onEpochStart: (e) => {
@@ -67,14 +69,13 @@ async function main() {
     ".cache/checkpoints/model_epoch-{epoch}.json"
   );
 
-  // 5. Optionally save final model
-  const finalPath = "frontend/public/doodle-guesser.json";
+  // Final model output
   await fs.writeFile(
-    finalPath,
+    opts.modelOutput,
     JSON.stringify(nn.checkpoint(), null, 2),
     "utf-8"
   );
-  console.log(`Final model saved to ${finalPath}`);
+  console.log(`Final model saved to ${opts.modelOutput}`);
 
   await dataset.close();
 }
