@@ -25,7 +25,18 @@ canvas {
   margin-bottom: 8px;
 }
 
-.guess-btn {
+.nav-container {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
+.nav-container .btn {
+  flex-grow: 1;
+  margin-bottom: 8px;
+}
+
+.btn {
   border: 3px solid #222;
   color: #222;
   font-size: 18px;
@@ -35,9 +46,26 @@ canvas {
   transition: all 150ms ease-in-out;
 }
 
-.guess-btn:hover {
+.btn:hover {
   background-color: #222;
   color: #f6f6f6;
   border-color: #f6f6f6;
   cursor: pointer;
+}
+
+.btn:disabled {
+  border: 3px solid #999;
+  color: #999;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 8px;
+  background-color: #eaeaea;
+  transition: all 150ms ease-in-out;
+}
+
+.btn:disabled:hover {
+  background-color: #eaeaea;
+  color: #bcbcbc;
+  border-color: #bcbcbc;
+  cursor: not-allowed;
 }

@@ -1,6 +1,5 @@
 // backend/src/train-quickdraw3.ts
 import { NeuralNetwork } from "@doodle/lib";
-import type { LayerConfig } from "@doodle/lib";
 import { DatasetBuilder } from "./data/DatasetBuilder";
 import { NodeScheduler } from "./train/Scheduler";
 import { Trainer } from "./train/Trainer";
@@ -19,7 +18,8 @@ async function main() {
       "mushroom",
       "snowman",
       "sword",
-    ],
+      "nose",
+    ].map((name) => ({ name, trainCount: 4000, testCount: 800 })),
     {}
   );
 
@@ -33,7 +33,7 @@ async function main() {
       { type: "pool", size: [2, 2] },
       { type: "flatten" },
       { type: "dense", size: 64, activation: "leakyRelu" },
-      { type: "dense", size: 3, activation: "softmax" },
+      { type: "dense", size: 10, activation: "softmax" },
     ],
     { learningRate: 0.001, loss: "categoricalCrossEntropy" }
   );
@@ -42,7 +42,7 @@ async function main() {
   const scheduler = new NodeScheduler();
   const trainer = new Trainer(nn, dataset, scheduler, {
     batchSize: 32,
-    epochs: 50,
+    epochs: 30,
     batchesPerYield: 50,
     checkpointEvery: 1,
   });

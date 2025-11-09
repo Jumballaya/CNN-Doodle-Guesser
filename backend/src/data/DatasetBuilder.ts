@@ -230,7 +230,7 @@ export class DatasetBuilder {
 
     const specs: ClassSpec[] = namesOrSpecs.map((n) =>
       typeof n === "string"
-        ? { name: n, trainCount: 4000, testCount: 1000 } // default counts
+        ? { name: n, trainCount: 800, testCount: 200 } // default counts
         : n
     );
 

@@ -5,6 +5,19 @@ import {
   type NNCheckpoint,
 } from "@doodle/lib";
 
+const classes = [
+  "cat",
+  "butterfly",
+  "rainbow",
+  "banana",
+  "flower",
+  "ladder",
+  "mushroom",
+  "snowman",
+  "sword",
+  "nose",
+];
+
 export class DrawingApp {
   public ctx: CanvasRenderingContext2D;
   public width: number;
@@ -25,7 +38,9 @@ export class DrawingApp {
   // elements
   public canvas: HTMLCanvasElement;
   private guessBtn: HTMLButtonElement;
-  private container: HTMLDivElement;
+  private undoBtn: HTMLButtonElement;
+  private redoBtn: HTMLButtonElement;
+  private container: HTMLElement;
 
   constructor(nn: NeuralNetwork) {
     this.nn = nn;
@@ -35,7 +50,14 @@ export class DrawingApp {
     this.guessBtn = this.createGuessBtn();
     [this.canvas, this.resizeCanvas] = this.createCanvas();
     this.container = this.createContainer();
+    this.undoBtn = this.createUndoBtn();
+    this.redoBtn = this.createRedoBtn();
+    const nav = document.createElement("div");
+    nav.classList.add("nav-container");
+    nav.appendChild(this.undoBtn);
+    nav.appendChild(this.redoBtn);
     document.body.appendChild(this.container);
+    this.container.appendChild(nav);
     this.container.appendChild(this.canvas);
     this.container.appendChild(this.guessBtn);
     this.ctx = this.canvas.getContext("2d", { willReadFrequently: true })!;
@@ -49,6 +71,8 @@ export class DrawingApp {
       }
       this.mouseDown = true;
       this.snapshots.push(this.ctx.getImageData(0, 0, this.width, this.height));
+      this.undoBtn.disabled = false;
+      this.redoBtn.disabled = true;
       this.redosnaps = [];
     });
     document.body.addEventListener("mouseup", () => {
@@ -100,10 +124,11 @@ export class DrawingApp {
       28,
       28
     );
-    const imageData = this.resizeCtx.getImageData(0, 0, 28, 28);
+    const imageData = this.resizeCtx.getImageData(0, 0, 28, 28).data;
     for (let i = 0; i < 28 * 28; i++) {
-      data[i] = imageData.data[i * 4 + 3] / 255;
+      data[i] = (255 - imageData[i * 4 + 3]) / 255;
     }
+    console.log(data);
     return data;
   }
 
@@ -125,6 +150,10 @@ export class DrawingApp {
     if (snap) {
       this.ctx.putImageData(snap, 0, 0);
       this.redosnaps.push(screen);
+      this.redoBtn.disabled = false;
+    }
+    if (this.snapshots.length === 0) {
+      this.undoBtn.disabled = true;
     }
   }
 
@@ -134,33 +163,57 @@ export class DrawingApp {
     if (last) {
       this.ctx.putImageData(last, 0, 0);
       this.snapshots.push(screen);
+      this.undoBtn.disabled = false;
+    }
+    if (this.redosnaps.length === 0) {
+      this.redoBtn.disabled = true;
     }
   }
 
   private createGuessBtn(): HTMLButtonElement {
     const guessBtn = document.createElement("button");
     guessBtn.innerText = "Guess!";
-    guessBtn.classList.add("guess-btn");
+    guessBtn.classList.add("btn");
     guessBtn.addEventListener("click", (e) => {
       e.preventDefault();
       const data = this.getData();
       const guess = this.nn.guess(
         new Tensor4D([1, 28, 28, 1], new Float32Array(data))
       );
+      console.log(guess);
       const output = argMax(guess);
-      if (output === 0) {
-        console.log("Cat?");
-      } else if (output === 1) {
-        console.log("Butterfly?");
-      } else if (output === 2) {
-        console.log("Rainbow?");
-      }
+      console.log(`${classes[output]}?`);
     });
     return guessBtn;
   }
 
-  private createContainer(): HTMLDivElement {
-    const container = document.createElement("div");
+  private createRedoBtn(): HTMLButtonElement {
+    const undoBtn = document.createElement("button");
+    undoBtn.innerText = "Re-do >>";
+    undoBtn.classList.add("btn");
+    undoBtn.disabled = this.snapshots.length === 0;
+    undoBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.redo();
+    });
+    return undoBtn;
+  }
+
+  private createUndoBtn(): HTMLButtonElement {
+    const redoBtn = document.createElement("button");
+    redoBtn.innerText = "<< Un-do";
+    redoBtn.classList.add("btn");
+    redoBtn.disabled = this.redosnaps.length === 0;
+
+    redoBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      this.undo();
+    });
+    return redoBtn;
+  }
+
+  private createContainer(): HTMLElement {
+    const container = document.createElement("main");
     container.classList.add("drawing-app");
     return container;
   }

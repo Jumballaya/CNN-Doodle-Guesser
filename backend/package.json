@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "train": "tsx src/train-quickdraw3.ts"
+    "train": "tsx src/train-quickdraw.ts"
   },
   "dependencies": {
     "@doodle/lib": "*"
