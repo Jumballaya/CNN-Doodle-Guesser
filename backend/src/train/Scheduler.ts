@@ -1,3 +1,8 @@
+//
+//  @TODO: NodeJS only, no running the trainer in the
+//         browser so I don't need this level of abstraction
+//
+
 export interface IScheduler {
   tick(): Promise<void>;
 }

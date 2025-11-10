@@ -1,3 +1,4 @@
+import { shuffleArray } from "@doodle/lib";
 import type { ClassInfo } from "./manifest";
 import type { IDataSource, Batch } from "./NodeFileSource";
 
@@ -44,11 +45,7 @@ export class BatchSampler {
       }
     }
 
-    // Shuffle each epoch
-    for (let i = order.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0;
-      [order[i], order[j]] = [order[j], order[i]];
-    }
+    shuffleArray(order);
 
     const B = this.batchSize;
     for (let i = 0; i < order.length; i += B) {

@@ -4,9 +4,10 @@ import { Buffer } from "node:buffer";
 import path from "node:path";
 
 import type { DatasetManifest, ClassInfo, SplitInfo } from "./manifest";
-import { readNpyHeader } from "./npy.js";
+import { NpyHeader, readNpyHeader } from "./npy.js";
 import { NodeFileSource } from "./NodeFileSource.js";
 import { BatchSampler } from "./BatchSampler";
+import { shuffleArray } from "@doodle/lib";
 
 const IMG_H = 28;
 const IMG_W = 28;
@@ -18,10 +19,10 @@ const DEFAULT_DATA_DIR = ".cache/public";
 const DEFAULT_MANIFEST = ".cache/public/quickdraw-3.json";
 
 export interface ClassSpec {
-  name: string; // "cat"
-  trainCount: number; // e.g. 800
-  testCount: number; // e.g. 200
-  displayName?: string; // optional override
+  name: string;
+  trainCount: number;
+  testCount: number;
+  displayName?: string;
 }
 
 export interface DatasetBuilderOptions {
@@ -85,9 +86,9 @@ function quickdrawUrl(name: string): string {
 async function downloadIfNeeded(url: string, dest: string): Promise<void> {
   try {
     await fs.access(dest);
-    return; // already exists
+    return;
   } catch {
-    // continue
+    // continue on
   }
 
   await ensureDir(path.dirname(dest));
@@ -98,15 +99,39 @@ async function downloadIfNeeded(url: string, dest: string): Promise<void> {
     );
   }
 
-  // Simpler: buffer in memory once, then write
   const ab = await res.arrayBuffer();
   const buf = Buffer.from(ab);
   await fs.writeFile(dest, buf);
 }
 
-/**
- * Build the train/test .bin files and manifest for one class.
- */
+// helper to copy + invert one image into a writable file
+async function writeSplit(
+  filePath: string,
+  idxList: number[],
+  offsets: number[],
+  header: NpyHeader,
+  fh: fs.FileHandle,
+  sampleBuf: Buffer
+) {
+  const handle = await openFd(filePath, "w");
+  try {
+    let localOffset = 0;
+    for (const idx of idxList) {
+      const samplePos = header.dataOffset + idx * IMG_SIZE;
+      await fh.read(sampleBuf, 0, IMG_SIZE, samplePos);
+      // invert colors: 255 - pixel
+      for (let i = 0; i < IMG_SIZE; i++) {
+        sampleBuf[i] = 255 - sampleBuf[i];
+      }
+      offsets.push(localOffset);
+      await handle.write(sampleBuf, 0, IMG_SIZE, localOffset);
+      localOffset += IMG_SIZE;
+    }
+  } finally {
+    await handle.close();
+  }
+}
+
 async function buildClassBins(
   spec: ClassSpec,
   id: number,
@@ -135,12 +160,8 @@ async function buildClassBins(
     );
   }
 
-  // Shuffle indices
   const indices = Array.from({ length: numSamples }, (_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = (Math.random() * (i + 1)) | 0;
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
+  shuffleArray(indices);
   const trainIdx = indices.slice(0, spec.trainCount);
   const testIdx = indices.slice(
     spec.trainCount,
@@ -158,38 +179,11 @@ async function buildClassBins(
   const trainOffsets: number[] = [];
   const testOffsets: number[] = [];
 
-  // Keep a file handle on the .npy so we can random-access images
   const fh = await openFd(cacheFile, "r");
   try {
     const sampleBuf = Buffer.allocUnsafe(IMG_SIZE);
-
-    // helper to copy + invert one image into a writable file
-    async function writeSplit(
-      filePath: string,
-      idxList: number[],
-      offsets: number[]
-    ) {
-      const handle = await openFd(filePath, "w");
-      try {
-        let localOffset = 0;
-        for (const idx of idxList) {
-          const samplePos = header.dataOffset + idx * IMG_SIZE;
-          await fh.read(sampleBuf, 0, IMG_SIZE, samplePos);
-          // invert colors: 255 - pixel
-          for (let i = 0; i < IMG_SIZE; i++) {
-            sampleBuf[i] = 255 - sampleBuf[i];
-          }
-          offsets.push(localOffset);
-          await handle.write(sampleBuf, 0, IMG_SIZE, localOffset);
-          localOffset += IMG_SIZE;
-        }
-      } finally {
-        await handle.close();
-      }
-    }
-
-    await writeSplit(trainAbs, trainIdx, trainOffsets);
-    await writeSplit(testAbs, testIdx, testOffsets);
+    await writeSplit(trainAbs, trainIdx, trainOffsets, header, fh, sampleBuf);
+    await writeSplit(testAbs, testIdx, testOffsets, header, fh, sampleBuf);
   } finally {
     await fh.close();
   }
@@ -243,9 +237,7 @@ export class DatasetBuilder {
     const testCount = options.testCount ?? DEFAULT_TEST_COUNT;
 
     const specs: ClassSpec[] = namesOrSpecs.map((n) =>
-      typeof n === "string"
-        ? { name: snakeCase(n), trainCount, testCount } // default counts
-        : n
+      typeof n === "string" ? { name: snakeCase(n), trainCount, testCount } : n
     );
 
     const oneHotDim = specs.length;
@@ -273,9 +265,6 @@ export class DatasetBuilder {
     return new QuickdrawDataset(manifest);
   }
 
-  /**
-   * Load an existing manifest from disk and create a dataset.
-   */
   static async fromManifest(
     manifestPath: string,
     rootDir = process.cwd()

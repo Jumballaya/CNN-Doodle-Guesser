@@ -4,28 +4,19 @@ import {
   type ActivationValue,
   type NNCheckpoint,
 } from "@doodle/lib";
-
-const classes = [
-  "cat",
-  "butterfly",
-  "rainbow",
-  "banana",
-  "flower",
-  "ladder",
-  "mushroom",
-  "snowman",
-  "sword",
-  "nose",
-];
+import { Manifest } from "./Manifest";
 
 export class DrawingApp {
   public ctx: CanvasRenderingContext2D;
   public width: number;
   public height: number;
 
+  private manifest: Manifest;
+
   private mouseDown = false;
   private mouseX = 0;
   private mouseY = 0;
+  private radius = 10;
 
   private snapshots: ImageData[] = [];
   private redosnaps: ImageData[] = [];
@@ -42,8 +33,9 @@ export class DrawingApp {
   private redoBtn: HTMLButtonElement;
   private container: HTMLElement;
 
-  constructor(nn: NeuralNetwork) {
+  constructor(nn: NeuralNetwork, manifest: Manifest) {
     this.nn = nn;
+    this.manifest = manifest;
     this.width = 28 * 10 * 2;
     this.height = 28 * 10 * 2;
 
@@ -52,6 +44,7 @@ export class DrawingApp {
     this.container = this.createContainer();
     this.undoBtn = this.createUndoBtn();
     this.redoBtn = this.createRedoBtn();
+    this.createCursor();
     const nav = document.createElement("div");
     nav.classList.add("nav-container");
     nav.appendChild(this.undoBtn);
@@ -74,6 +67,7 @@ export class DrawingApp {
       this.undoBtn.disabled = false;
       this.redoBtn.disabled = true;
       this.redosnaps = [];
+      this.makeMark();
     });
     document.body.addEventListener("mouseup", () => {
       this.mouseDown = false;
@@ -100,11 +94,18 @@ export class DrawingApp {
     this.canvas.addEventListener("mousemove", this.onMoveMouse.bind(this));
   }
 
-  public static async FromSerialized(path: string) {
+  public static async FromSerialized({
+    modelFile,
+    manifestFile,
+  }: {
+    modelFile: string;
+    manifestFile: string;
+  }) {
     try {
-      const data: NNCheckpoint = await (await fetch(path)).json();
+      const data: NNCheckpoint = await (await fetch(modelFile)).json();
       const nn = NeuralNetwork.fromCheckpoint(data);
-      return new DrawingApp(nn);
+      const man = await Manifest.FromFile(manifestFile);
+      return new DrawingApp(nn, man);
     } catch (e) {
       throw e;
     }
@@ -128,7 +129,6 @@ export class DrawingApp {
     for (let i = 0; i < 28 * 28; i++) {
       data[i] = (255 - imageData[i * 4 + 3]) / 255;
     }
-    console.log(data);
     return data;
   }
 
@@ -137,10 +137,7 @@ export class DrawingApp {
     this.mouseX = e.clientX - rect.x;
     this.mouseY = e.clientY - rect.y;
     if (this.mouseDown) {
-      this.ctx.fillStyle = "black";
-      this.ctx.beginPath();
-      this.ctx.arc(this.mouseX, this.mouseY, 10, 0, Math.PI * 2);
-      this.ctx.fill();
+      this.makeMark();
     }
   }
 
@@ -170,6 +167,13 @@ export class DrawingApp {
     }
   }
 
+  private makeMark() {
+    this.ctx.fillStyle = "black";
+    this.ctx.beginPath();
+    this.ctx.arc(this.mouseX, this.mouseY, this.radius, 0, Math.PI * 2);
+    this.ctx.fill();
+  }
+
   private createGuessBtn(): HTMLButtonElement {
     const guessBtn = document.createElement("button");
     guessBtn.innerText = "Guess!";
@@ -181,7 +185,7 @@ export class DrawingApp {
         new Tensor4D([1, 28, 28, 1], new Float32Array(data))
       );
       const output = argMax(guess);
-      console.log(`${classes[output]}?`);
+      console.log(`${this.manifest.getDisplayName(output)}?`);
     });
     return guessBtn;
   }
@@ -225,6 +229,44 @@ export class DrawingApp {
     canvas.width = this.width;
     canvas.height = this.height;
     return [canvas, resizeCanvas];
+  }
+
+  private createCursor(): HTMLDivElement {
+    const cursor = document.createElement("div");
+    cursor.classList.add("cursor");
+    cursor.style.width = `${this.radius * 2}px`;
+    cursor.style.height = `${this.radius * 2}px`;
+
+    document.body.appendChild(cursor);
+
+    let posX = 0;
+    let posY = 0;
+    document.body.addEventListener("mousemove", (e) => {
+      posX = e.clientX;
+      posY = e.clientY;
+      cursor.style.left = `${e.clientX - this.radius}px`;
+      cursor.style.top = `${e.clientY - this.radius}px`;
+    });
+
+    this.canvas.addEventListener("mouseenter", () => {
+      cursor.style.opacity = `0.5`;
+    });
+
+    this.canvas.addEventListener("mouseleave", () => {
+      cursor.style.opacity = `0`;
+    });
+
+    document.body.addEventListener("wheel", (e) => {
+      const dir = e.deltaY >= 0 ? 1 : -1;
+      this.radius += dir;
+      this.radius = Math.min(60, Math.max(10, this.radius));
+      cursor.style.width = `${this.radius * 2}px`;
+      cursor.style.height = `${this.radius * 2}px`;
+      cursor.style.left = `${posX - this.radius}px`;
+      cursor.style.top = `${posY - this.radius}px`;
+    });
+
+    return cursor;
   }
 }
 

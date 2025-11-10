@@ -17,12 +17,10 @@ async function main() {
     console.log(USAGE);
     return;
   }
-  // Get CLI inputs
 
-  // Load class list and build data set
   const classes = await getClassList(opts.classList);
   const dataset = await DatasetBuilder.create(classes, {
-    manifestPath: ".cache/public/quickdraw.json",
+    manifestPath: ".cache/public/doodle-manifest.json",
     trainCount: opts.trainCount,
     testCount: opts.testCount,
   });
@@ -41,7 +39,6 @@ async function main() {
     { learningRate: 0.005, loss: "categoricalCrossEntropy" }
   );
 
-  // Training
   const scheduler = new NodeScheduler();
   const trainer = new Trainer(nn, dataset, scheduler, {
     batchSize: 32,
@@ -69,7 +66,6 @@ async function main() {
     ".cache/checkpoints/model_epoch-{epoch}.json"
   );
 
-  // Final model output
   await fs.writeFile(
     opts.modelOutput,
     JSON.stringify(nn.checkpoint(), null, 2),

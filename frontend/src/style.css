@@ -14,6 +14,7 @@ body {
 
 canvas {
   border: 1px solid #999;
+  cursor: none;
 }
 
 .drawing-app {
@@ -23,6 +24,16 @@ canvas {
 
 .drawing-app canvas {
   margin-bottom: 8px;
+}
+
+.cursor {
+  position: absolute;
+  background-color: #000;
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  opacity: 0;
 }
 
 .nav-container {

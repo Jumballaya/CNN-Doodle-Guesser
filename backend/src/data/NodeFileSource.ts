@@ -2,6 +2,11 @@ import fs from "node:fs/promises";
 import { Buffer } from "node:buffer";
 import path from "node:path";
 
+//
+//  @TODO: NodeJS only, no running the trainer in the
+//         browser so I don't need this level of abstraction
+//
+
 export type SampleView = Float32Array;
 
 export interface Batch {

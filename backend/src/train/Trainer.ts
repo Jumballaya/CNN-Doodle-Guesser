@@ -23,7 +23,6 @@ export interface TrainerOptions {
   epochs: number;
   batchesPerYield?: number;
   checkpointEvery?: number;
-  // future: validationSplit?
 }
 
 export class Trainer {
@@ -44,9 +43,6 @@ export class Trainer {
     await fs.writeFile(abs, JSON.stringify(ckpt, null, 2), "utf-8");
   }
 
-  /**
-   * Public helper if you just want to save the current model state.
-   */
   async saveCheckpoint(filePath: string): Promise<void> {
     await this.saveCheckpointToFile(-1, filePath);
   }
@@ -81,13 +77,11 @@ export class Trainer {
           const xi = x.subarray(i * IMG, (i + 1) * IMG);
           const yi = y.subarray(i * C, (i + 1) * C);
 
-          // Train on single sample
           const input = new Tensor4D([1, 28, 28, 1], xi);
           this.nn.train(input, yi);
 
-          // Optional: metrics
           const yhat = this.nn.guess(input) as Float32Array;
-          const l = (this.nn as any)["lossFn"].f(yhat, yi); // use internal loss entry
+          const l = (this.nn as any)["lossFn"].f(yhat, yi);
           lossSum += l;
           sampleCount++;
 

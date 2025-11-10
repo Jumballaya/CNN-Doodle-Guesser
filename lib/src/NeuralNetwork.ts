@@ -310,7 +310,7 @@ export class NeuralNetwork {
       layer.activation?.name === "softmax" &&
       this.lossFn?.name === "categoricalCrossEntropy";
 
-    // --- 1) Compute dZ = dOut ⊙ f'(z)
+    // Compute dZ = dOut ⊙ f'(z)
     const dZ = new Float32Array(outSize);
     if (isOutputSoftmax) {
       // Gradient already simplified to (ŷ - y)
@@ -353,7 +353,7 @@ export class NeuralNetwork {
       }
     }
 
-    // --- 2) Compute dW and dB
+    // Compute dW and dB
     const dW = new Float32Array(inSize * outSize);
     const dB = new Float32Array(outSize);
 
@@ -364,7 +364,7 @@ export class NeuralNetwork {
       }
     }
 
-    // --- 3) Compute dX = Wᵀ * dZ
+    // Compute dX = Wᵀ * dZ
     const dX = new Float32Array(inSize);
 
     for (let j = 0; j < inSize; j++) {
@@ -386,18 +386,17 @@ export class NeuralNetwork {
       throw new Error("NaN in dX");
     }
 
-    // --- 4) Apply gradient descent update
+    // Apply gradient descent update
     const lr = this.learningRate;
-
     for (let i = 0; i < outSize; i++) {
-      B[i] -= lr * dB[i]; // update bias
+      B[i] -= lr * dB[i];
       for (let j = 0; j < inSize; j++) {
         const idx = i * inSize + j;
-        W[idx] -= lr * dW[idx]; // update weight
+        W[idx] -= lr * dW[idx];
       }
     }
 
-    return dX; // propagate upstream
+    return dX;
   }
 
   private flattenBackward(
@@ -416,9 +415,7 @@ export class NeuralNetwork {
     const { N, H, W, C } = cache;
     const out = new Tensor4D([N, H, W, C]);
 
-    // Fill the tensor from the flat dOut
     let idx = 0;
-
     for (let n = 0; n < N; n++) {
       for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
@@ -466,7 +463,7 @@ export class NeuralNetwork {
       C_in = kernel.shape[2],
       C_out = kernel.shape[3];
 
-    // 1) dZ = dOut ⊙ f'(postAct)
+    // dZ = dOut ⊙ f'(postAct)
     const dZ = new Tensor4D(dOut.shape as [number, number, number, number]);
     for (let n = 0; n < N; n++)
       for (let oy = 0; oy < outH; oy++)
@@ -477,10 +474,10 @@ export class NeuralNetwork {
             dZ.set(n, oy, ox, f, act ? g * act.df(a) : g);
           }
 
-    // 2) Accumulate grads
+    // Accumulate grads
     const dKernel = new Tensor4D([kH, kW, C_in, C_out]);
     const dBias = new Float32Array(C_out);
-    const dPad = new Tensor4D([N, H, W, C_in]); // grad wrt padded input
+    const dPad = new Tensor4D([N, H, W, C_in]);
 
     for (let n = 0; n < N; n++) {
       for (let oy = 0; oy < outH; oy++) {
@@ -522,7 +519,7 @@ export class NeuralNetwork {
       }
     }
 
-    // 3) Crop dPad → dInput
+    // Crop dPad --> dInput
     const dInput = new Tensor4D(input.shape);
     for (let n = 0; n < N; n++) {
       for (let y = 0; y < input.getH(); y++) {
@@ -534,7 +531,7 @@ export class NeuralNetwork {
       }
     }
 
-    // 4) SGD updates (use get/set, not flatten)
+    // SGD updates (use get/set, not flatten)
     const lr = this.learningRate;
     for (let f = 0; f < C_out; f++) {
       layer.bias[f] -= lr * dBias[f];
