@@ -5,6 +5,7 @@ import {
   type NNCheckpoint,
 } from "@doodle/lib";
 import { Manifest } from "./Manifest";
+import { GuessModal } from "./GuessModal";
 
 export class DrawingApp {
   public ctx: CanvasRenderingContext2D;
@@ -14,6 +15,7 @@ export class DrawingApp {
   private manifest: Manifest;
 
   private mouseDown = false;
+  private touchDown = false;
   private mouseX = 0;
   private mouseY = 0;
   private radius = 10;
@@ -32,6 +34,7 @@ export class DrawingApp {
   private undoBtn: HTMLButtonElement;
   private redoBtn: HTMLButtonElement;
   private container: HTMLElement;
+  private modal: GuessModal;
 
   constructor(nn: NeuralNetwork, manifest: Manifest) {
     this.nn = nn;
@@ -45,6 +48,7 @@ export class DrawingApp {
     this.undoBtn = this.createUndoBtn();
     this.redoBtn = this.createRedoBtn();
     this.createCursor();
+    this.modal = new GuessModal();
     const nav = document.createElement("div");
     nav.classList.add("nav-container");
     nav.appendChild(this.undoBtn);
@@ -58,17 +62,11 @@ export class DrawingApp {
       willReadFrequently: true,
     })!;
 
-    document.body.addEventListener("mousedown", (e) => {
-      if (e.target !== this.canvas) {
-        return;
-      }
-      this.mouseDown = true;
-      this.snapshots.push(this.ctx.getImageData(0, 0, this.width, this.height));
-      this.undoBtn.disabled = false;
-      this.redoBtn.disabled = true;
-      this.redosnaps = [];
-      this.makeMark();
+    document.body.addEventListener("touchstart", this.onTouchStart.bind(this));
+    document.body.addEventListener("touchend", () => {
+      this.mouseDown = false;
     });
+    document.body.addEventListener("mousedown", this.onMouseDown.bind(this));
     document.body.addEventListener("mouseup", () => {
       this.mouseDown = false;
     });
@@ -92,6 +90,7 @@ export class DrawingApp {
     });
 
     this.canvas.addEventListener("mousemove", this.onMoveMouse.bind(this));
+    this.canvas.addEventListener("touchmove", this.onTouchMove.bind(this));
   }
 
   public static async FromSerialized({
@@ -132,11 +131,50 @@ export class DrawingApp {
     return data;
   }
 
+  private onMouseDown(e: MouseEvent) {
+    if (this.touchDown) {
+      return;
+    }
+    if (e.target !== this.canvas) {
+      return;
+    }
+    this.mouseDown = true;
+    this.snapshots.push(this.ctx.getImageData(0, 0, this.width, this.height));
+    this.undoBtn.disabled = false;
+    this.redoBtn.disabled = true;
+    this.redosnaps = [];
+    this.makeMark();
+  }
+
   private onMoveMouse(e: MouseEvent) {
+    if (this.touchDown) {
+      return;
+    }
     const rect = this.canvas.getBoundingClientRect();
     this.mouseX = e.clientX - rect.x;
     this.mouseY = e.clientY - rect.y;
     if (this.mouseDown) {
+      this.makeMark();
+    }
+  }
+
+  private onTouchStart(e: TouchEvent) {
+    if (e.target !== this.canvas) {
+      return;
+    }
+    this.touchDown = true;
+    this.snapshots.push(this.ctx.getImageData(0, 0, this.width, this.height));
+    this.undoBtn.disabled = false;
+    this.redoBtn.disabled = true;
+    this.redosnaps = [];
+    this.makeMark();
+  }
+
+  private onTouchMove(e: TouchEvent) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouseX = e.changedTouches[0].clientX - rect.x;
+    this.mouseY = e.changedTouches[0].clientY - rect.y;
+    if (this.touchDown) {
       this.makeMark();
     }
   }
@@ -174,6 +212,13 @@ export class DrawingApp {
     this.ctx.fill();
   }
 
+  private checkGuess(guess: string | undefined) {
+    if (!guess) {
+      return;
+    }
+    this.modal.showGuess(guess);
+  }
+
   private createGuessBtn(): HTMLButtonElement {
     const guessBtn = document.createElement("button");
     guessBtn.innerText = "Guess!";
@@ -185,7 +230,8 @@ export class DrawingApp {
         new Tensor4D([1, 28, 28, 1], new Float32Array(data))
       );
       const output = argMax(guess);
-      console.log(`${this.manifest.getDisplayName(output)}?`);
+
+      this.checkGuess(this.manifest.getDisplayName(output));
     });
     return guessBtn;
   }

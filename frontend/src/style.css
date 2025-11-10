@@ -15,6 +15,7 @@ body {
 canvas {
   border: 1px solid #999;
   cursor: none;
+  max-width: 100%;
 }
 
 .drawing-app {
@@ -35,6 +36,40 @@ canvas {
   pointer-events: none;
   opacity: 0;
 }
+
+.guess-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(255.0, 255.0, 255.0, 0.8);
+  visibility: hidden;
+}
+
+.guess-modal .guess-pretex {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 36px;
+  font-weight: bold;
+  margin: 32px 0px;
+  color: #222;
+  padding: 8px;
+}
+
+.guess-modal .guess {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 42px;
+  font-weight: bold;
+  margin: 0px 0px 32px 0px;
+  color: #fafafa;
+  background-color: #222;
+  padding: 8px 16px;
+}
+
 
 .nav-container {
   display: flex;
