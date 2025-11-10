@@ -52,6 +52,8 @@ The output applies softmax and cross entropy for the loss function. This way the
 
 ## Running the Frontend
 
+First download the repository and run `npm install` at the root, This will install all of the node modules needed. Then to run the application:
+
 ```bash
 npm run run:frontend
 ```
