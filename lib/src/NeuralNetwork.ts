@@ -680,7 +680,7 @@ export class NeuralNetwork {
 
     let out: Float32Array;
     if (layer.activation?.name === "softmax") {
-      out = softmax.vector(z);
+      out = softmax(z);
     } else {
       out = new Float32Array(z.length);
       for (let i = 0; i < z.length; i++) {
