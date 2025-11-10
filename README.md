@@ -50,6 +50,16 @@ The output applies softmax and cross entropy for the loss function. This way the
 
 ```
 
+## Some Resources
+
+- StatQuest
+  - [Argmax and softmax](https://www.youtube.com/watch?v=KpKog-L9veg&t=479s)
+  - [Softmax Derivative](https://www.youtube.com/watch?v=M59JElEPgIg)
+  - [Cross Entropy and Backprop](https://www.youtube.com/watch?v=xBEh66V9gZo&t=966s)
+  - [Image Classification with CNNs](https://www.youtube.com/watch?v=HGwBXDKFk9I)
+- 3Blue1Brown
+  - [But what is a convolution?](https://www.youtube.com/watch?v=KuXjwB4LzSA)
+
 ## Running the Frontend
 
 First download the repository and run `npm install` at the root, This will install all of the node modules needed. Then to run the application:
