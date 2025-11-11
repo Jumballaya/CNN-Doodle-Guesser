@@ -98,6 +98,8 @@ Options:
   --train-count=<number>    Number of doodles to train on, per doodle, per epoch
   --test-count=<number>     Number of doodles to test against per doodle
   --model-output="<file>"   Path to the final model file output
+  --epochs=<number>         Number of epochs to train
+  --learn-rate=<number>     Learning rate, defaults to 0.01
 
 Examples:
   npm run train --workspace=@doodle/backend -- --class-list="src/categories-3.txt" --model-output="doodle-detector.json"
