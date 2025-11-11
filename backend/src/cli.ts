@@ -3,6 +3,8 @@ export type CLIOpts = {
   testCount: number;
   trainCount: number;
   modelOutput: string;
+  epochs: number;
+  learnRate: number;
   help: boolean;
 };
 
@@ -15,12 +17,14 @@ Options:
   --train-count=<number>    Number of doodles to train on, per doodle, per epoch
   --test-count=<number>     Number of doodles to test against per doodle
   --model-output="<file>"   Path to the final model file output 
+  --epochs=<number>         Number of epochs to train
+  --learn-rate=<number>     Learning rate, defaults to 0.01
 
 Examples:
   npm run train --workspace=@doodle/backend -- --class-list="src/categories-3.txt" --model-output="doodle-detector.json"
 `;
 
-function argvCommands(): Record<string, string> {
+function argvCommands() {
   const cmds = process.argv.slice(2);
   const out: Record<string, string> = {};
   for (const cmd of cmds) {
@@ -32,26 +36,32 @@ function argvCommands(): Record<string, string> {
       }
     }
   }
-  return out;
+  return {
+    getInt: (field: string, def: number): number => {
+      return out[field] ? parseInt(out[field]) : def;
+    },
+    getFloat: (field: string, def: number): number => {
+      return out[field] ? parseFloat(out[field]) : def;
+    },
+    getString: (field: string, def: string): string => {
+      return out[field] ? out[field] : def;
+    },
+    getBool: (field: string): boolean => {
+      return out[field] === "true";
+    },
+  };
 }
 
 export function getCLIOptions(): CLIOpts {
-  const defaultClasslist = "src/categories-3.txt";
-  const defaultTrainCount = 800;
-  const defaultTestCount = 200;
-  const defaultModelOutput = "doodle-guesser.json";
-
   const commands = argvCommands();
 
-  const classList = commands["class-list"] ?? defaultClasslist;
-  const trainCount = commands["train-count"]
-    ? parseInt(commands["train-count"])
-    : defaultTrainCount;
-  const testCount = commands["test-count"]
-    ? parseInt(commands["test-count"])
-    : defaultTestCount;
-  const modelOutput = commands["model-output"] ?? defaultModelOutput;
-  const help = commands["help"] === "true";
+  const classList = commands.getString("class-list", "src/categories-3.txt");
+  const trainCount = commands.getInt("train-count", 800);
+  const testCount = commands.getInt("train-count", 200);
+  const modelOutput = commands.getString("model-output", "doodle-guesser.json");
+  const help = commands.getBool("help");
+  const epochs = commands.getInt("epochs", 15);
+  const learnRate = commands.getFloat("learn-rate", 0.01);
 
   return {
     classList,
@@ -59,5 +69,7 @@ export function getCLIOptions(): CLIOpts {
     testCount,
     modelOutput,
     help,
+    epochs,
+    learnRate,
   };
 }

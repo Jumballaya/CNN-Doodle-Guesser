@@ -6,14 +6,14 @@ import type { QuickdrawDataset } from "../data/DatasetBuilder";
 import type { IScheduler } from "./Scheduler";
 
 export interface TrainerCallbacks {
-  onEpochStart?(epoch: number): void | Promise<void>;
+  onEpochStart?(epoch: number, startTime: number): void | Promise<void>;
   onEpochEnd?(
     epoch: number,
-    metrics: { loss: number; acc?: number }
+    metrics: { loss: number; acc?: number; runtime: number }
   ): void | Promise<void>;
   onBatchEnd?(
     batchIndex: number,
-    metrics: { loss: number }
+    metrics: { loss: number; runtime: number }
   ): void | Promise<void>;
   onCheckpoint?(epoch: number, ckpt: NNCheckpoint): void | Promise<void>;
 }
@@ -61,7 +61,8 @@ export class Trainer {
     const C = this.dataset.numClasses();
 
     for (let e = 0; e < epochs; e++) {
-      await callbacks.onEpochStart?.(e);
+      const epochStart = performance.now();
+      await callbacks.onEpochStart?.(e, epochStart);
 
       const sampler = this.dataset.createBatchSampler("train", batchSize);
       let batchIndex = 0;
@@ -70,6 +71,7 @@ export class Trainer {
       let correct = 0;
 
       for await (const { x, y } of sampler.batches()) {
+        const batchStart = performance.now();
         const IMG = x.length / (y.length / C); // x: [B*IMG], y: [B*C]
         const B = Math.floor(x.length / IMG);
 
@@ -105,8 +107,12 @@ export class Trainer {
           if (p === t) correct++;
         }
 
+        const batchEnd = performance.now();
+        const batchRunTime = batchEnd - batchStart;
+
         await callbacks.onBatchEnd?.(batchIndex, {
           loss: lossSum / Math.max(1, sampleCount),
+          runtime: batchRunTime,
         });
         batchIndex++;
 
@@ -115,9 +121,13 @@ export class Trainer {
         }
       }
 
+      const epochEnd = performance.now();
+      const epochRuntime = epochEnd - epochStart;
+
       const metrics = {
         loss: lossSum / Math.max(1, sampleCount),
         acc: correct / Math.max(1, sampleCount),
+        runtime: epochRuntime,
       };
       await callbacks.onEpochEnd?.(e, metrics);
 

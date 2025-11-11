@@ -11,6 +11,26 @@ async function getClassList(path: string): Promise<string[]> {
   return txt.split("\n");
 }
 
+function timeString(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m ${seconds}s`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 60) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+}
+
 async function main() {
   const opts = getCLIOptions();
   if (opts.help) {
@@ -36,13 +56,13 @@ async function main() {
       { type: "dense", size: 64, activation: "relu" },
       { type: "dense", size: classes.length, activation: "softmax" },
     ],
-    { learningRate: 0.005, loss: "categoricalCrossEntropy" }
+    { learningRate: opts.learnRate, loss: "categoricalCrossEntropy" }
   );
 
   const scheduler = new NodeScheduler();
   const trainer = new Trainer(nn, dataset, scheduler, {
     batchSize: 32,
-    epochs: 30,
+    epochs: opts.epochs,
     batchesPerYield: 50,
     checkpointEvery: 1,
   });
@@ -56,7 +76,7 @@ async function main() {
         console.log(
           `Epoch ${e + 1} done: loss=${m.loss.toFixed(4)} acc=${(
             (m.acc ?? 0) * 100
-          ).toFixed(1)}%`
+          ).toFixed(1)}%\nTime taken -- ${timeString(m.runtime)}`
         );
       },
       onCheckpoint: async (e, ckpt) => {
