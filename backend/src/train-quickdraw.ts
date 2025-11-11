@@ -28,12 +28,12 @@ async function main() {
   const nn = new NeuralNetwork(
     [
       { type: "input", shape: [1, 28, 28, 1] },
-      { type: "conv2d", kernel: [3, 3], filters: 8, activation: "leakyRelu" },
+      { type: "conv2d", kernel: [3, 3], filters: 8, activation: "relu" },
       { type: "pool", size: [2, 2] },
-      { type: "conv2d", kernel: [3, 3], filters: 16, activation: "leakyRelu" },
+      { type: "conv2d", kernel: [3, 3], filters: 16, activation: "relu" },
       { type: "pool", size: [2, 2] },
       { type: "flatten" },
-      { type: "dense", size: 64, activation: "leakyRelu" },
+      { type: "dense", size: 64, activation: "relu" },
       { type: "dense", size: classes.length, activation: "softmax" },
     ],
     { learningRate: 0.005, loss: "categoricalCrossEntropy" }
