@@ -4,6 +4,7 @@ import { NodeScheduler } from "./train/Scheduler";
 import { Trainer } from "./train/Trainer";
 import fs from "node:fs/promises";
 import { getCLIOptions, USAGE } from "./cli";
+import path from "node:path";
 
 async function getClassList(path: string): Promise<string[]> {
   const res = await fs.readFile(path);
@@ -43,7 +44,7 @@ async function main() {
 
   const classes = await getClassList(opts.classList);
   const dataset = await DatasetBuilder.create(classes, {
-    manifestPath: ".cache/public/doodle-manifest.json",
+    manifestPath: path.join(".cache", "public", "doodle-manifest.json"),
     trainCount: opts.trainCount,
     testCount: opts.testCount,
   });
@@ -86,7 +87,7 @@ async function main() {
         console.log(`Checkpoint saved: completed: ${e}`);
       },
     },
-    ".cache/checkpoints/model_epoch-{epoch}.json"
+    path.join(".cache", "checkpoints", "model_epoch-{epoch}.json")
   );
 
   await fs.writeFile(

@@ -14,9 +14,9 @@ const IMG_W = 28;
 const IMG_SIZE = IMG_H * IMG_W;
 const DEFAULT_TRAIN_COUNT = 800;
 const DEFAULT_TEST_COUNT = 200;
-const DEFAULT_CACHE_DIR = path.join(".cache/quickdraw");
-const DEFAULT_DATA_DIR = path.join(".cache/public");
-const DEFAULT_MANIFEST = path.join(".cache/public/quickdraw-3.json");
+const DEFAULT_CACHE_DIR = path.join(".cache", "quickdraw");
+const DEFAULT_DATA_DIR = path.join(".cache", "public");
+const DEFAULT_MANIFEST = path.join(".cache", "public", "quickdraw-3.json");
 
 export interface ClassSpec {
   name: string;
