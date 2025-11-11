@@ -20,15 +20,18 @@ function timeString(ms: number): string {
     return `${seconds}s`;
   }
   const minutes = Math.floor(seconds / 60);
+  const adjSec = seconds - minutes * 60;
   if (minutes < 60) {
-    return `${minutes}m ${seconds}s`;
+    return `${minutes}m ${adjSec}s`;
   }
   const hours = Math.floor(minutes / 60);
+  const adjMins = minutes - hours * 60;
   if (hours < 60) {
-    return `${hours}h ${minutes}m ${seconds}s`;
+    return `${hours}h ${adjMins}m ${adjSec}s`;
   }
   const days = Math.floor(hours / 24);
-  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  const adjHours = hours - days * 24;
+  return `${days}d ${adjHours}h ${adjMins}m ${adjSec}s`;
 }
 
 async function main() {
