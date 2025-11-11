@@ -83,7 +83,11 @@ function quickdrawUrl(name: string): string {
   )}.npy`;
 }
 
-async function downloadIfNeeded(url: string, dest: string): Promise<void> {
+async function downloadIfNeeded(
+  url: string,
+  dir: string,
+  dest: string
+): Promise<void> {
   try {
     await fs.access(dest);
     return;
@@ -91,7 +95,7 @@ async function downloadIfNeeded(url: string, dest: string): Promise<void> {
     // continue on
   }
 
-  await ensureDir(path.dirname(dest));
+  await ensureDir(path.dirname(dir));
   const res = await fetch(url);
   if (!res.ok || !res.body) {
     throw new Error(
@@ -143,7 +147,7 @@ async function buildClassBins(
 
   const npyUrl = quickdrawUrl(spec.name);
   const cacheFile = path.join(cacheDir, `${spec.name}.npy`);
-  await downloadIfNeeded(npyUrl, cacheFile);
+  await downloadIfNeeded(npyUrl, cacheDir, cacheFile);
 
   const header = await readNpyHeader(cacheFile);
   const [numSamples, cols] = header.shape;

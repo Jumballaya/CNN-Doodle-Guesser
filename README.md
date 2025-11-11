@@ -77,7 +77,13 @@ The frontend application will load the model file and training manifest. The `fr
 This command will train a model to detect cat, butterfly and rainbow doodles, using 2000 training images and 500 testing images. It will output the file `doodle-guesser-3.json` to the `backend/` folder. This is the model file, and you can find the training file in the `backend/.cache/public` folder under the name `doodle-manifest.json`. Once the training has completed you can move the model and manifest into the `frontend/public` folder and update the `frontend/src/main.ts` file to point to the desired model and manifest files.
 
 ```bash
-npm run train --workspace=@doodle/backend -- --class-list="src/categories-3.txt" --train-count=2000 --test-count=500 --model-output="doodle-guesser-3.json"
+npm run train --workspace @doodle/backend -- --class-list="src/categories-3.txt" --train-count=2000 --test-count=500 --model-output="doodle-guesser-3.json"
+```
+
+NOTE: in powershell you will have to wrap that lone '--' in quotes like so:
+
+```bash
+npm run train --workspace @doodle/backend '--' --class-list="src/categories-3.txt" --train-count=2000 --test-count=500 --model-output="doodle-guesser-3.json"
 ```
 
 CLI Usage
